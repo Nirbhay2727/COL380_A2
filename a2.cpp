@@ -57,37 +57,33 @@ void dfs(map<int,set<int>>& G, vector<bool> &visited, int v, vector<int> &verts)
 int main(int argc, char* argv[]) {
 
     //input options
-    int option;
-    int taskid = 0;
-    string inputpath="./test1/test-input-1.gra";
-    string headerpath="";
-    string outputpath="./test1/our_output.txt";
-    int verbose=0;
-    int startk=1;
-    int endk=10;
-    int p;
+    int taskid = -1;
+    std::string inputpath;
+    std::string headerpath;
+    std::string outputpath;
+    int verbose = -1;
+    int startk = -1;
+    int endk = -1;
+    int p = -1;
     std::vector<std::string> args(argv, argv + argc);
     for (size_t i = 0; i < args.size(); i++) {
-        if (args[i] == "--taskid" && i + 1 < args.size()) {
-                taskid = std::stoi(args[i + 1]);
-        }
-        if (args[i] == "--inputpath" && i + 1 < args.size()) {
-                inputpath = args[i + 1];
-        }
-        if (args[i] == "--headerpath" && i + 1 < args.size()) {
-                headerpath = args[i + 1];
-        }
-        if (args[i] == "--outputpath" && i + 1 < args.size()) {
-                outputpath = args[i + 1];
-        }
-        if (args[i] == "--verbose" && i + 1 < args.size()) {
-                verbose = std::stoi(args[i + 1]);
-        }
-        if (args[i] == "--startk" && i + 1 < args.size()) {
-                startk = std::stoi(args[i + 1]);
-        }
-        if (args[i] == "--endk" && i + 1 < args.size()) {
-                endk = std::stoi(args[i + 1]);
+         std::string arg = argv[i];
+        if (arg.substr(0, 10) == "--taskid=") {
+        taskid = std::stoi(arg.substr(10));
+        } else if (arg.substr(0, 12) == "--inputpath=") {
+        inputpath = arg.substr(12);
+        } else if (arg.substr(0, 12) == "--headerpath=") {
+        headerpath = arg.substr(12);
+        } else if (arg.substr(0, 12) == "--outputpath=") {
+        outputpath = arg.substr(12);
+        } else if (arg.substr(0, 10) == "--verbose=") {
+        verbose = std::stoi(arg.substr(10));
+        } else if (arg.substr(0, 9) == "--startk=") {
+        startk = std::stoi(arg.substr(9));
+        } else if (arg.substr(0, 7) == "--endk=") {
+        endk = std::stoi(arg.substr(7));
+        } else if (arg.substr(0, 4) == "--p=") {
+        p = std::stoi(arg.substr(4));
         }
     }
 
