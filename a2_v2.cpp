@@ -109,8 +109,6 @@ int main(int argc, char* argv[]) {
             }
             adjList.erase(temp);
         }
-
-        map<pair<int,int>,int> supp;
         
         //initialize
         set<pair<int,int> > deletable2;
@@ -120,11 +118,9 @@ int main(int argc, char* argv[]) {
                 set<int> Intersection;
                 insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
                 set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
-                int supp_e=Intersection.size();
-                if(a<b)
-                    supp[{a,b}] = supp_e;
-                if (supp_e<k - 2 && a<b){
-                    deletable2.insert({a,b});
+                int supp=Intersection.size();
+                if (supp<k - 2){
+                    deletable2.insert(make_pair(min(a,b),max(a,b)));//see this
                 }
             }
         }
@@ -149,45 +145,21 @@ int main(int argc, char* argv[]) {
             insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
             set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
             for(auto c:Intersection){
-                if(a<c){
-                    supp[{a,c}]--;
-                    if(supp[{a,c}]<k-2){
-                        deletable2.insert({a,c});
-                    }
-                }else{
-                    supp[{c,a}]--;
-                    if(supp[{c,a}]<k-2){
-                        deletable2.insert({c,a});
-                    }
+                set<int> tempIntersection;
+                insert_iterator<set<int> > IntersectIterate2(tempIntersection, tempIntersection.begin());
+                set_intersection(adjList[a].begin(), adjList[a].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate2);
+                int supp=tempIntersection.size();
+                if (supp<k - 2){
+                    deletable2.insert(make_pair(min(a,c),max(a,c)));
                 }
+                tempIntersection.clear();
 
-                if(b<c){
-                    supp[{b,c}]--;
-                    if(supp[{b,c}]<k-2){
-                        deletable2.insert({b,c});
-                    }
-                }else{
-                    supp[{c,b}]--;
-                    if(supp[{c,b}]<k-2){
-                        deletable2.insert({c,b});
-                    }
+                insert_iterator<set<int> > IntersectIterate3(tempIntersection, tempIntersection.begin());
+                set_intersection(adjList[b].begin(), adjList[b].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate3);
+                supp=tempIntersection.size();
+                if (supp<k - 2){
+                    deletable2.insert(make_pair(min(b,c),max(b,c)));
                 }
-
-                // set<int> tempIntersection;
-                // insert_iterator<set<int>> IntersectIterate2(tempIntersection, tempIntersection.begin());
-                // set_intersection(adjList[a].begin(), adjList[a].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate2);
-                // int supp=tempIntersection.size();
-                // if (supp<k - 2){
-                //     a<c?deletable2.insert(make_pair(a,c)):deletable2.insert(make_pair(c,a));
-                // }
-                // tempIntersection.clear();
-
-                // insert_iterator<set<int>> IntersectIterate3(tempIntersection, tempIntersection.begin());
-                // set_intersection(adjList[b].begin(), adjList[b].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate3);
-                // supp=tempIntersection.size();
-                // if (supp<k - 2){
-                //     b<c?deletable2.insert(make_pair(b,c)):deletable2.insert(make_pair(c,b));
-                // }
             }
         }
 
