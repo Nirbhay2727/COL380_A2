@@ -11,7 +11,20 @@
 #include <unistd.h>
 #include<unordered_set>
 #include <mpi.h>
+
 using namespace std;
+
+struct pair_hash
+{
+    template <class T1, class T2>
+    std::size_t operator () (std::pair<T1, T2> const &pair) const
+    {
+        std::size_t h1 = std::hash<T1>()(pair.first);
+        std::size_t h2 = std::hash<T2>()(pair.second);
+ 
+        return h1 ^ h2;
+    }
+};
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
     ofstream f1("./test1/our_input.txt");
@@ -67,60 +80,190 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
     int my_rank, num_procs;
     MPI_Comm_rank( MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
+
+
+    vector<pair<int, int>> edges;
+    for(auto it=adjList.begin(); it!=adjList.end(); it++){
+        for(auto it2=it->second.begin(); it2!=it->second.end(); it2++){
+            if(it->first<*it2){
+                edges.push_back(make_pair(it->first,*it2));
+            }
+        }
+    }
+
+
+
     for(int it1 = my_rank; it1<edges.size(); it1+=num_procs) {
-        my_edges.insert(deletable2[it1]);
-        my_edge_map[deletable2[it1]] = true;
+        my_edges.insert(edges[it1]);
+        my_edge_map[edges[it1]] = true;
         // cout<<"edge "<<it1<<endl;
     }
     
-    for(int i=0; i<deletable2.size(); i++){
-        ownerp[deletable2[i]]=i%num_procs;
+    for(int i=0; i<edges.size(); i++){
+        ownerp[edges[i]]=i%num_procs;
     }
-    while(deletable2.size()>0){
-        pair<int,int> temp = *deletable2.begin();
-        deletable2.erase(temp);
-        adjList[temp.first].erase(temp.second);
-        if(adjList[temp.first].size()==0){
-            adjList.erase(temp.first);
+
+
+    set<pair<int, int>, pair_hash> my_deletable;
+
+    for(auto i : deletable2) {
+        if(my_edges.find(i)!=my_edges.end()) {
+            my_deletable.insert(i);
+            // #ifdef MY_DEL
+            // cout<<"("<<deletable[i].first<<", "<<deletable[i].second<<"), ";
+            // #endif
         }
-        adjList[temp.second].erase(temp.first);
-        if(adjList[temp.second].size()==0){
-            adjList.erase(temp.second);
-        }
-        set<int> Intersection;
-        int a = temp.first;
-        int b = temp.second;
-        //assertion a<b
-        insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
-        set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
-        for(auto c:Intersection){
-            if(a<c){
-                supp[{a,c}]--;
-                if(supp[{a,c}]<k-2){
-                    deletable2.insert({a,c});
+    }
+
+    int sendcounts[num_procs];
+    int sdispls[num_procs];
+    int sedgedispls[num_procs];
+    int sendedgecounts[num_procs];
+    
+
+    int recvcounts[num_procs];
+    int rdispls[num_procs];
+    int redgedispls[num_procs];
+    int recvedgecounts[num_procs];
+
+    for(int i = 0; i<num_procs; i++) {
+        sendcounts[i]=3;
+        recvcounts[i]=3;
+        sdispls[i] = 3*i;
+        rdispls[i] = 3*i;
+    }
+
+    bool all_fin = false;
+
+    map<int, set<int>> &G = adjList;
+
+    while(!all_fin){
+        vector<int> recvbuf(3*num_procs);
+        vector<int> sendbuf(3*num_procs);
+        set<pair<pair<int, int>, int>> sendingedges[num_procs];
+
+        for(int i=0; i<num_procs; i++)sendedgecounts[i]=0;
+
+        int count = 0;
+        if(my_deletable.empty() == false) {
+           
+            auto e = *my_deletable.begin();
+
+            #ifdef gg
+            if(e==make_pair(3, 11))cout<<"deleting {3, 11}"<<endl;
+            #endif
+            my_deletable.erase(e);
+            my_edges.erase(e);
+            my_edge_map[e] = false;
+            #ifdef MY_DEL
+            cout<<k-2<<"-> Rank "<<my_rank<<" deletes : "<<"("<<e.first<<", "<<e.second<<"), support[make_pair(3, 10)] ="<<support[make_pair(3, 10)]<<endl;
+            #endif
+            
+            int x1 = e.first, y1 = e.second;
+            for(int a: G[x1]) {
+                if(find(G[y1].begin(), G[y1].end(), a) != G[y1].end()) {
+                    
+                    pair<int, int> ax={min(x1, a), max(x1, a)}, ay={min(y1, a), max(y1, a)};
+                    #ifdef gg
+                    if(e==make_pair(3, 11))cout<<"ax: "<<ax.first<<", "<<ax.second<<" ay: "<<ay.first<<", "<<ay.second<<" owner: "<<ownerp[ax]<<", "<<ownerp[ay]<<endl;
+                    #endif
+                    sendedgecounts[ownerp[ax]]+=3;
+                    sendedgecounts[ownerp[ay]]+=3;
+                    sendingedges[ownerp[ax]].insert({ax, y1});
+                    sendingedges[ownerp[ay]].insert({ay, x1});
+
                 }
-            }else{
-                supp[{c,a}]--;
-                if(supp[{c,a}]<k-2){
-                    deletable2.insert({c,a});
+            }
+            
+            for(int it1 = 0; it1<num_procs; it1++) {
+                sendbuf[3*it1] = e.first;
+                sendbuf[3*it1 + 1] = e.second;
+                sendbuf[3*it1+2] = sendedgecounts[it1]/3;
+            }
+        } else {
+            for(int it1 = 0; it1<num_procs; it1++) {
+                sendbuf[3*it1] = -1;
+                sendbuf[3*it1 + 1] = -1;
+                sendbuf[3*it1+2] = 0;
+            }
+        }
+
+        // Call MPI_alltoallv to send and receive data
+        MPI_Alltoallv(sendbuf.data(), sendcounts, sdispls, MPI_INT,
+                      recvbuf.data(), recvcounts, rdispls, MPI_INT,
+                      MPI_COMM_WORLD);
+
+
+        int total_edges_to_recv = 0;
+        for(int i = 0;i<num_procs; i++) {
+            total_edges_to_recv += recvbuf[3*i + 2];
+        }
+        vector<int> sendedgebuf;
+        vector<int> recvedgebuf(3*total_edges_to_recv, -5);
+        sedgedispls[0] = 0;
+        redgedispls[0] = 0;
+        bool flag=false;
+        for(int i=0; i<num_procs; i++){
+            if(i!=0)sedgedispls[i]=sedgedispls[i-1] + sendedgecounts[i-1]; 
+            for( pair<pair<int, int>, int> e : sendingedges[i]){
+                #ifdef gg
+                if(e==make_pair(3,10))flag=true;
+                #endif
+                sendedgebuf.push_back(e.first.first);
+                sendedgebuf.push_back(e.first.second);
+                sendedgebuf.push_back(e.second);
+
+            }
+        }
+        for(int i = 0; i<num_procs; i++) {
+            
+            int x1=recvbuf[3*i], y1=recvbuf[3*i+1];
+            
+            if(x1!=-1){
+                if(find(G[x1].begin(), G[x1].end(), y1)!=G[x1].end())
+                    G[x1].erase(find(G[x1].begin(), G[x1].end(), y1));
+                if(find(G[y1].begin(), G[y1].end(), x1)!=G[y1].end())
+                    G[y1].erase(find(G[y1].begin(), G[y1].end(), x1));
+            }
+            else count++;
+            
+            recvedgecounts[i] = 3*recvbuf[3*i + 2];
+            if(i > 0) {
+                redgedispls[i] = redgedispls[i-1] + recvedgecounts[i-1];
+            }
+        }
+    
+
+
+        MPI_Alltoallv(sendedgebuf.data(), sendedgecounts, sedgedispls, MPI_INT,
+                        recvedgebuf.data(), recvedgecounts, redgedispls, MPI_INT,
+                        MPI_COMM_WORLD);
+
+        set<pair<pair<int, int>, int>> handled;
+            for(int it1 = 0; it1<recvedgebuf.size(); it1+=3) {
+                pair<pair<int, int>, int> ed = { make_pair(recvedgebuf[it1], recvedgebuf[it1 + 1]), recvedgebuf[it1 + 2] };
+                pair<int, int> ed1=ed.first;
+                #ifdef gg
+                if(ed1 == make_pair(3, 10)) cout<<my_rank<<": Yes"<<endl;
+                #endif
+                if(handled.find(ed)==handled.end()){
+                    handled.insert(ed);
+                    if(my_edges.find(ed1) != my_edges.end()) {
+                        supp[ed1] --;
+                        if(supp[ed1] < k-2 && my_deletable.find(ed1) == my_deletable.end()) {
+                            my_deletable.insert(ed1);
+                        }
+                    }
                 }
             }
 
-            if(b<c){
-                supp[{b,c}]--;
-                if(supp[{b,c}]<k-2){
-                    deletable2.insert({b,c});
-                }
-            }else{
-                supp[{c,b}]--;
-                if(supp[{c,b}]<k-2){
-                    deletable2.insert({c,b});
-                }
-            }
-
+        if(count == num_procs) {
+            break;
         }
+
     }
 }
+
 int main(int argc, char* argv[]) {
 
     //input options
@@ -159,13 +302,15 @@ int main(int argc, char* argv[]) {
     }
 
 
+    MPI_Init(&argc, &argv);
+
 
     //start
     int n,m;
     map<int,set<int> > adjList;
     readInputFromFile(inputpath,n,m,adjList);
     map<pair<int,int>,int> supp;
-    std::ofstream outfile(outputpath);
+    ofstream outfile(outputpath);
 
     for(int k = startk+2; k <= endk+2; k++){
 
@@ -209,50 +354,53 @@ int main(int argc, char* argv[]) {
             }
         }
         
-       
+        int myrank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
 
         //output
-        if(adjList.size()!=0){
-            bool flag = true;
-            auto it = adjList.begin();
-            while(it!=adjList.end()){
-                if(it->second.size()!=0){
-                    flag = false;
-                    it++;
+        if(myrank == 0){
+            if(adjList.size()!=0){
+                bool flag = true;
+                auto it = adjList.begin();
+                while(it!=adjList.end()){
+                    if(it->second.size()!=0){
+                        flag = false;
+                        it++;
+                    }else{
+                        //delete it;
+                        adjList.erase(it++);
+                    }
+                }
+                if(!flag){
+                    outfile << "1" << endl;
+                    if(verbose==1){
+                        vector<vector<int>> components;
+                        vector<bool> visited(n+1,0);
+                        for(auto temp:adjList){
+                            if(visited[temp.first]==0){
+                                vector<int> component;
+                                dfs(adjList,visited,temp.first,component);
+                                components.push_back(component);
+                            }
+                        }
+                        cout << "components size = " << components.size() << endl;
+                        outfile<<components.size()<<endl;
+                        for(auto component:components){
+                            sort(component.begin(),component.end());
+                            for(auto node:component){
+                                outfile<<node<<" ";
+                            }
+                            outfile<<endl;
+                        }
+                    }
                 }else{
-                    //delete it;
-                    adjList.erase(it++);
+                    outfile<<"0"<<endl;
                 }
             }
-            if(!flag){
-                outfile << "1" << endl;
-                if(verbose==1){
-                    vector<vector<int>> components;
-                    vector<bool> visited(n+1,0);
-                    for(auto temp:adjList){
-                        if(visited[temp.first]==0){
-                            vector<int> component;
-                            dfs(adjList,visited,temp.first,component);
-                            components.push_back(component);
-                        }
-                    }
-                    cout << "components size = " << components.size() << endl;
-                    outfile<<components.size()<<endl;
-                    for(auto component:components){
-                        sort(component.begin(),component.end());
-                        for(auto node:component){
-                            outfile<<node<<" ";
-                        }
-                        outfile<<endl;
-                    }
-                }
-            }else{
+            else{
                 outfile<<"0"<<endl;
             }
-        }
-        else{
-            outfile<<"0"<<endl;
         }
     }
     return 0;
