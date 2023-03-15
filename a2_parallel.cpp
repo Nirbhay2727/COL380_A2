@@ -163,11 +163,10 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
         }
         vector<int> sendedgebuf;
         int l = 0;
-        vector<int> recvedgebuf(3*total_edges_to_recv, -5);
+        vector<int> receivingEdgeBuffer(3*total_edges_to_recv, -5);
         sedgedispls[0] = 0;
         int x = 2;
         redgedispls[0] = 0;
-        bool flag=false;
         for(int i=0; i<num_procs; i++){
             if(i!=0)sedgedispls[i]=sedgedispls[i-1] + sendingEdgeCount[i-1]; 
             for( pair<pair<int, int>, int> e : sedningEdges[i]){
@@ -202,12 +201,12 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
 
 
         MPI_Alltoallv(sendedgebuf.data(), sendingEdgeCount, sedgedispls, MPI_INT,
-                        recvedgebuf.data(), recvedgecounts, redgedispls, MPI_INT,
+                        receivingEdgeBuffer.data(), recvedgecounts, redgedispls, MPI_INT,
                         MPI_COMM_WORLD);
 
         set<pair<pair<int, int>, int>> deleted;
-            for(int it1 = 0; it1<recvedgebuf.size(); it1+=3) {
-                pair<pair<int, int>, int> ed = { make_pair(recvedgebuf[it1], recvedgebuf[it1 + 1]), recvedgebuf[it1 + 2] };
+            for(int it1 = 0; it1<receivingEdgeBuffer.size(); it1+=3) {
+                pair<pair<int, int>, int> ed = { make_pair(receivingEdgeBuffer[it1], receivingEdgeBuffer[it1 + 1]), receivingEdgeBuffer[it1 + 2] };
                 pair<int, int> ed1=ed.first;
                 if(deleted.find(ed)==deleted.end()){
                     deleted.insert(ed);
