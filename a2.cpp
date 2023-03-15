@@ -7,9 +7,10 @@
 #include <queue>
 #include <algorithm>
 #include <set>
+#include <unistd.h>
 using namespace std;
 
-void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>& adjList,vector<pair<int, int>>& edges) {
+void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>& adjList) {
     ifstream infile(filename, ios::binary); 
     if (!infile.is_open()) { 
         cerr << "Error: Failed to open file \"" << filename << "\"" << endl;
@@ -34,9 +35,6 @@ void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>
             infile.read(reinterpret_cast<char*>(&temp), sizeof(temp)); 
             temp = __builtin_bswap32(temp); 
             adjList[node].insert(temp);
-            if (node<temp){
-                edges.push_back(make_pair(node,temp));
-            }
         }
     }
     infile.close(); 
@@ -46,18 +44,57 @@ void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>
 
 
 int main(int argc, char* argv[]) {
-    vector<pair<int, int>> edges;
-    int kmin = atoi(argv[1]);
-    int kmax = atoi(argv[2]);
+
+    //input options
+    int option;
+    int taskid = 0;
+    string inputpath="";
+    string headerpath="";
+    string outputpath="";
+    int verbose=0;
+    int startk;
+    int endk;
+    int p;
+    std::vector<std::string> args(argv, argv + argc);
+    for (size_t i = 0; i < args.size(); i++) {
+        if (args[i] == "--taskid" && i + 1 < args.size()) {
+                taskid = std::stoi(args[i + 1]);
+        }
+        if (args[i] == "--inputpath" && i + 1 < args.size()) {
+                inputpath = args[i + 1];
+        }
+        if (args[i] == "--headerpath" && i + 1 < args.size()) {
+                headerpath = args[i + 1];
+        }
+        if (args[i] == "--outputpath" && i + 1 < args.size()) {
+                outputpath = args[i + 1];
+        }
+        if (args[i] == "--verbose" && i + 1 < args.size()) {
+                verbose = std::stoi(args[i + 1]);
+        }
+        if (args[i] == "--startk" && i + 1 < args.size()) {
+                startk = std::stoi(args[i + 1]);
+        }
+        if (args[i] == "--endk" && i + 1 < args.size()) {
+                endk = std::stoi(args[i + 1]);
+        }
+    }
+
+
+
+    //start
     int n,m;
     string inputpath="";
     map<int,set<int>> adjList;
-    readInputFromFile(inputpath,n,m,adjList,edges);
+    readInputFromFile(inputpath,n,m,adjList);
     map<pair<int,int>,int> supp;
     int verbose;
+    std::ofstream outfile(outputpath);
 
-    //prefilter
-    for(int k = kmin; k <= kmax; k++){
+    for(int k = startk; k <= endk; k++){
+
+
+        //prefilter
         queue<int> deletable;
         for (auto it=adjList.begin();it!=adjList.end();it++){
             if (it->second.size()<k){
@@ -96,7 +133,7 @@ int main(int argc, char* argv[]) {
         }
 
 
-
+        //filter edges
         while(deletable2.size()>0){
             pair<int,int> temp = *deletable2.begin();
             deletable2.erase(temp);
@@ -131,14 +168,20 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        if(verbose==1){
 
-        }
-
+        //output
         if(adjList.size()!=0){
-            cout << k << "truss exists" << endl;
+            outfile << "1" << endl;
+            if(verbose==1){
+                for(auto e:adjList){
+                    outfile<<e.first<<" ";
+                }
+            outfile<<endl;
+            }
+        }
+        else{
+            outfile<<"0"<<endl;
         }
     }
-
     return 0;
 }
