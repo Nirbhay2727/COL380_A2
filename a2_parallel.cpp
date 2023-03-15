@@ -1,13 +1,16 @@
+
+#include <bits/stdc++.h>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <bits/stdc++.h>
 #include <map>
 #include <queue>
 #include <algorithm>
 #include <set>
 #include <unistd.h>
+#include<unordered_set>
+#include <mpi.h>
 using namespace std;
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
@@ -54,6 +57,70 @@ void dfs(map<int,set<int>>& G, vector<bool> &visited, int v, vector<int> &verts)
     }
 }
 
+
+void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,set<pair<int,int> >& deletable2){
+    //filter edges
+    unordered_set<pair<int, int>, pair_hash> my_edges;
+    map<pair<int, int>, int> ownerp;
+    map<pair<int, int>, bool> my_edge_map;
+
+    int my_rank, num_procs;
+    MPI_Comm_rank( MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
+    for(int it1 = my_rank; it1<edges.size(); it1+=num_procs) {
+        my_edges.insert(deletable2[it1]);
+        my_edge_map[deletable2[it1]] = true;
+        // cout<<"edge "<<it1<<endl;
+    }
+    
+    for(int i=0; i<deletable2.size(); i++){
+        ownerp[deletable2[i]]=i%num_procs;
+    }
+    while(deletable2.size()>0){
+        pair<int,int> temp = *deletable2.begin();
+        deletable2.erase(temp);
+        adjList[temp.first].erase(temp.second);
+        if(adjList[temp.first].size()==0){
+            adjList.erase(temp.first);
+        }
+        adjList[temp.second].erase(temp.first);
+        if(adjList[temp.second].size()==0){
+            adjList.erase(temp.second);
+        }
+        set<int> Intersection;
+        int a = temp.first;
+        int b = temp.second;
+        //assertion a<b
+        insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
+        set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
+        for(auto c:Intersection){
+            if(a<c){
+                supp[{a,c}]--;
+                if(supp[{a,c}]<k-2){
+                    deletable2.insert({a,c});
+                }
+            }else{
+                supp[{c,a}]--;
+                if(supp[{c,a}]<k-2){
+                    deletable2.insert({c,a});
+                }
+            }
+
+            if(b<c){
+                supp[{b,c}]--;
+                if(supp[{b,c}]<k-2){
+                    deletable2.insert({b,c});
+                }
+            }else{
+                supp[{c,b}]--;
+                if(supp[{c,b}]<k-2){
+                    deletable2.insert({c,b});
+                }
+            }
+
+        }
+    }
+}
 int main(int argc, char* argv[]) {
 
     //input options
@@ -142,6 +209,8 @@ int main(int argc, char* argv[]) {
             }
         }
         
+       
+
 
         //output
         if(adjList.size()!=0){
