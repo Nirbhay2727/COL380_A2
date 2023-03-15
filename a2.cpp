@@ -10,7 +10,8 @@
 #include <unistd.h>
 using namespace std;
 
-void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>& adjList) {
+void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
+    ofstream f1("./test0/our_input.txt");
     ifstream infile(filename, ios::binary); 
     if (!infile.is_open()) { 
         cerr << "Error: Failed to open file \"" << filename << "\"" << endl;
@@ -18,26 +19,25 @@ void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>
     }
 
     infile.read(reinterpret_cast<char*>(&n), sizeof(n)); 
-    n = __builtin_bswap32(n); 
 
     infile.read(reinterpret_cast<char*>(&m), sizeof(m)); 
-    m = __builtin_bswap32(m); 
+     
 
-
+    f1<<n<<" "<<m<<endl;
     for (int i = 0; i < n; i++) {
         int node,k;
         infile.read(reinterpret_cast<char*>(&node), sizeof(node)); 
-        node = __builtin_bswap32(node); 
-        infile.read(reinterpret_cast<char*>(&k), sizeof(k)); 
-        k = __builtin_bswap32(k); 
+        infile.read(reinterpret_cast<char*>(&k), sizeof(k));
+        f1<<node<<" "<<k<<" ";
         for (int j = 0; j < k; j++) {
             int temp;
             infile.read(reinterpret_cast<char*>(&temp), sizeof(temp)); 
-            temp = __builtin_bswap32(temp); 
             adjList[node].insert(temp);
+            f1<<temp<<" ";
         }
+        f1<<endl;
     }
-    infile.close(); 
+    infile.close();
 }
 
 
@@ -48,12 +48,12 @@ int main(int argc, char* argv[]) {
     //input options
     int option;
     int taskid = 0;
-    string inputpath="";
+    string inputpath="./test0/test-input-0.gra";
     string headerpath="";
-    string outputpath="";
+    string outputpath="./test0/our_output.txt";
     int verbose=0;
-    int startk;
-    int endk;
+    int startk=1;
+    int endk=10;
     int p;
     std::vector<std::string> args(argv, argv + argc);
     for (size_t i = 0; i < args.size(); i++) {
@@ -84,15 +84,12 @@ int main(int argc, char* argv[]) {
 
     //start
     int n,m;
-    string inputpath="";
-    map<int,set<int>> adjList;
+    map<int,set<int> > adjList;
     readInputFromFile(inputpath,n,m,adjList);
     map<pair<int,int>,int> supp;
-    int verbose;
     std::ofstream outfile(outputpath);
 
     for(int k = startk; k <= endk; k++){
-
 
         //prefilter
         queue<int> deletable;
@@ -116,12 +113,12 @@ int main(int argc, char* argv[]) {
         map<pair<int,int>,int> supp;
         
         //initialize
-        set<pair<int,int>> deletable2;
+        set<pair<int,int> > deletable2;
         for (auto tempset:adjList){
             int a = tempset.first;
             for (auto b:tempset.second){
                 set<int> Intersection;
-                insert_iterator<set<int>> IntersectIterate(Intersection, Intersection.begin());
+                insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
                 set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
                 int supp_e=Intersection.size();
                 if(a<b)
@@ -148,7 +145,7 @@ int main(int argc, char* argv[]) {
             set<int> Intersection;
             int a = temp.first;
             int b = temp.second;
-            insert_iterator<set<int>> IntersectIterate(Intersection, Intersection.begin());
+            insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
             set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
             for(auto c:Intersection){
                 if(a<c){
