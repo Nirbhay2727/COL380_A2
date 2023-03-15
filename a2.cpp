@@ -11,7 +11,7 @@
 using namespace std;
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
-    ofstream f1("./test1/our_input.txt");
+    ofstream f1("./test0/our_input.txt");
     ifstream infile(filename, ios::binary); 
     if (!infile.is_open()) { 
         cerr << "Error: Failed to open file \"" << filename << "\"" << endl;
@@ -48,9 +48,9 @@ int main(int argc, char* argv[]) {
     //input options
     int option;
     int taskid = 0;
-    string inputpath="./test1/test-input-1.gra";
+    string inputpath="./test0/test-input-0.gra";
     string headerpath="";
-    string outputpath="./test1/our_output.txt";
+    string outputpath="./test0/our_output.txt";
     int verbose=0;
     int startk=1;
     int endk=10;
@@ -194,10 +194,14 @@ int main(int argc, char* argv[]) {
         //output
         if(adjList.size()!=0){
             bool flag = true;
-            for(auto e:adjList){
-                if(e.second.size()!=0){
+            auto it = adjList.begin();
+            while(it!=adjList.end()){
+                if(it->second.size()!=0){
                     flag = false;
-                    break;
+                    it++;
+                }else{
+                    //delete it;
+                    adjList.erase(it++);
                 }
             }
             if(!flag){
