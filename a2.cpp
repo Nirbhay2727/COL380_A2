@@ -6,6 +6,7 @@
 #include <map>
 #include <queue>
 #include <algorithm>
+#include <set>
 using namespace std;
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int>>& adjList,vector<pair<int, int>>& edges) {
@@ -53,6 +54,8 @@ int main(int argc, char* argv[]) {
     map<int,set<int>> adjList;
     readInputFromFile(inputpath,n,m,adjList,edges);
     map<pair<int,int>,int> supp;
+    int verbose;
+
     //prefilter
     for(int k = kmin; k <= kmax; k++){
         queue<int> deletable;
@@ -77,8 +80,8 @@ int main(int argc, char* argv[]) {
             }
         }
         
+        //initialize
         set<pair<int,int>> deletable2;
-
         for (auto tempset:adjList){
             int a = tempset.first;
             for (auto b:tempset.second){
@@ -127,6 +130,9 @@ int main(int argc, char* argv[]) {
                     b<c?deletable2.insert(make_pair(b,c)):deletable2.insert(make_pair(c,b));
                 }
             }
+        }
+        if(verbose==1){
+
         }
 
         if(adjList.size()!=0){
