@@ -11,7 +11,7 @@
 using namespace std;
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
-    ofstream f1("./test0/our_input.txt");
+    ofstream f1("./test1/our_input.txt");
     ifstream infile(filename, ios::binary); 
     if (!infile.is_open()) { 
         cerr << "Error: Failed to open file \"" << filename << "\"" << endl;
@@ -48,9 +48,9 @@ int main(int argc, char* argv[]) {
     //input options
     int option;
     int taskid = 0;
-    string inputpath="./test0/test-input-0.gra";
+    string inputpath="./test1/test-input-1.gra";
     string headerpath="";
-    string outputpath="./test0/our_output.txt";
+    string outputpath="./test1/our_output.txt";
     int verbose=0;
     int startk=1;
     int endk=10;
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     map<pair<int,int>,int> supp;
     std::ofstream outfile(outputpath);
 
-    for(int k = startk; k <= endk; k++){
+    for(int k = startk+2; k <= endk+2; k++){
 
         //prefilter
         queue<int> deletable;
@@ -117,18 +117,23 @@ int main(int argc, char* argv[]) {
         for (auto tempset:adjList){
             int a = tempset.first;
             for (auto b:tempset.second){
-                set<int> Intersection;
-                insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
-                set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
-                int supp_e=Intersection.size();
-                if(a<b)
+                if(a<b){
+                    set<int> Intersection;
+                    insert_iterator<set<int> > IntersectIterate(Intersection, Intersection.begin());
+                    set_intersection(adjList[a].begin(), adjList[a].end(), adjList[b].begin(), adjList[b].end(), IntersectIterate);
+                    int supp_e=Intersection.size();
                     supp[{a,b}] = supp_e;
-                if (supp_e<k - 2 && a<b){
-                    deletable2.insert({a,b});
+                    // cout << a << " " << b << " " << supp_e << endl;
+                    if (supp_e<k - 2){
+                        deletable2.insert({a,b});
+                    }
                 }
             }
         }
-
+        cout << k << " size=" << deletable2.size() << endl;
+        for(auto temp:supp){
+            // cout << temp.first.first << " " << temp.first.second << " " << temp.second << endl;
+        }
 
         //filter edges
         while(deletable2.size()>0){
@@ -173,32 +178,38 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
-                // set<int> tempIntersection;
-                // insert_iterator<set<int>> IntersectIterate2(tempIntersection, tempIntersection.begin());
-                // set_intersection(adjList[a].begin(), adjList[a].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate2);
-                // int supp=tempIntersection.size();
-                // if (supp<k - 2){
-                //     a<c?deletable2.insert(make_pair(a,c)):deletable2.insert(make_pair(c,a));
-                // }
-                // tempIntersection.clear();
-
-                // insert_iterator<set<int>> IntersectIterate3(tempIntersection, tempIntersection.begin());
-                // set_intersection(adjList[b].begin(), adjList[b].end(), adjList[c].begin(), adjList[c].end(), IntersectIterate3);
-                // supp=tempIntersection.size();
-                // if (supp<k - 2){
-                //     b<c?deletable2.insert(make_pair(b,c)):deletable2.insert(make_pair(c,b));
-                // }
             }
         }
 
+        // if(k==8){
+        //     for(auto temp:adjList){
+        //         cout << temp.first << " =";
+        //         for(auto temp2:temp.second){
+        //             cout << temp2 << " ";
+        //         }
+        //         cout << endl;
+        //     }
+        // }
+
         //output
         if(adjList.size()!=0){
-            outfile << "1" << endl;
-            if(verbose==1){
-                for(auto e:adjList){
-                    outfile<<e.first<<" ";
+            bool flag = true;
+            for(auto e:adjList){
+                if(e.second.size()!=0){
+                    flag = false;
+                    break;
                 }
-            outfile<<endl;
+            }
+            if(!flag){
+                outfile << "1" << endl;
+                if(verbose==1){
+                    for(auto e:adjList){
+                        outfile<<e.first<<" ";
+                    }
+                outfile<<endl;
+                }
+            }else{
+                outfile<<"0"<<endl;
             }
         }
         else{
