@@ -11,7 +11,7 @@
 using namespace std;
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
-    ofstream f1("./test0/our_input.txt");
+    ofstream f1("./test1/our_input.txt");
     ifstream infile(filename, ios::binary); 
     if (!infile.is_open()) { 
         cerr << "Error: Failed to open file \"" << filename << "\"" << endl;
@@ -40,6 +40,46 @@ void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> 
     infile.close();
 }
 
+void dfs(map<int,set<int>>& G, vector<bool> &visited, int v, vector<int> &verts) {
+    if(visited[v] == true) return;
+
+    visited[v] = true;
+    verts.push_back(v);
+
+    for(int u: G[v]) {
+        if(u!=v) {
+            // cout<<u<<" ";
+            dfs(G, visited, u, verts);
+        }
+    }
+}
+
+// void dfs(map<int,set<int> >& adjList, vector<vector<int> >& components){
+//     int n = adjList.size();
+//     vector<bool> visited(n,false);
+//     for (auto it=adjList.begin();it!=adjList.end();it++){
+//         if (!visited[it->first]){
+//             vector<int> component;
+//             stack<int> s;
+//             s.push(it->first);
+//             while(!s.empty()){
+//                 int temp = s.top();
+//                 s.pop();
+//                 if (!visited[temp]){
+//                     visited[temp] = true;
+//                     component.push_back(temp);
+//                     for (auto it2=adjList[temp].begin();it2!=adjList[temp].end();it2++){
+//                         if (!visited[*it2]){
+//                             s.push(*it2);
+//                         }
+//                     }
+//                 }
+//             }
+//             components.push_back(component);
+//         }
+//     }
+// }
+
 
 
 
@@ -48,9 +88,9 @@ int main(int argc, char* argv[]) {
     //input options
     int option;
     int taskid = 0;
-    string inputpath="./test0/test-input-0.gra";
+    string inputpath="./test1/test-input-1.gra";
     string headerpath="";
-    string outputpath="./test0/our_output.txt";
+    string outputpath="./test1/our_output.txt";
     int verbose=0;
     int startk=1;
     int endk=10;
@@ -130,11 +170,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        cout << k << " size=" << deletable2.size() << endl;
-        for(auto temp:supp){
-            // cout << temp.first.first << " " << temp.first.second << " " << temp.second << endl;
-        }
-
+        
         //filter edges
         while(deletable2.size()>0){
             pair<int,int> temp = *deletable2.begin();
@@ -207,10 +243,24 @@ int main(int argc, char* argv[]) {
             if(!flag){
                 outfile << "1" << endl;
                 if(verbose==1){
-                    for(auto e:adjList){
-                        outfile<<e.first<<" ";
+                    vector<vector<int>> components;
+                    vector<bool> visited(n+1,0);
+                    for(auto temp:adjList){
+                        if(visited[temp.first]==0){
+                            vector<int> component;
+                            dfs(adjList,visited,temp.first,component);
+                            components.push_back(component);
+                        }
                     }
-                outfile<<endl;
+                    cout << "components size = " << components.size() << endl;
+                    outfile<<components.size()<<endl;
+                    for(auto component:components){
+                        sort(component.begin(),component.end());
+                        for(auto node:component){
+                            outfile<<node<<" ";
+                        }
+                        outfile<<endl;
+                    }
                 }
             }else{
                 outfile<<"0"<<endl;
