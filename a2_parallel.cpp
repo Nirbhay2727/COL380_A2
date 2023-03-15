@@ -63,10 +63,9 @@ void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pa
     //filter edges
     set<pair<int, int>> my_edges;
     map<pair<int, int>, int> ownerp;
-    map<pair<int, int>, bool> my_edge_map;
 
-    int my_rank, num_procs;
-    MPI_Comm_rank( MPI_COMM_WORLD, &my_rank);
+    int procRank, num_procs;
+    MPI_Comm_rank( MPI_COMM_WORLD, &procRank);
     MPI_Comm_size (MPI_COMM_WORLD, &num_procs);
 
 
@@ -80,10 +79,8 @@ void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pa
     }
 
 
-    for(int it1 = my_rank; it1<edges.size(); it1+=num_procs) {
+    for(int it1 = procRank; it1<edges.size(); it1+=num_procs) {
         my_edges.insert(edges[it1]);
-        my_edge_map[edges[it1]] = true;
-        // cout<<"edge "<<it1<<endl;
     }
     
     for(int i=0; i<edges.size(); i++){
@@ -91,17 +88,17 @@ void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pa
     }
 
 
-    set<pair<int, int>> my_deletable;
+    deque<pair<int, int>> my_deletable;
 
     for(auto i : deletable2) {
         if(my_edges.find(i)!=my_edges.end()) {
-            my_deletable.insert(i);
+            my_deletable.push_back(i);
         }
     }
 
-    for(auto i : my_deletable) {
-        std::cout << i.first << " " << i.second << endl;
-    }
+    // for(auto i : my_deletable) {
+    //     std::cout << i.first << " " << i.second << endl;
+    // }
 
     int sendcounts[num_procs];
     int sdispls[num_procs];
@@ -133,14 +130,14 @@ void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pa
         int count = 0;
         if(my_deletable.empty() == false) {
            
-            auto e = *my_deletable.begin();
+            auto e = my_deletable.front();
 
-            my_deletable.erase(e);
+            my_deletable.pop_front();
             my_edges.erase(e);
-            my_edge_map[e] = false;
+            // my_edge_map[e] = false;
             
             int x1 = e.first, y1 = e.second;
-            for(int a: G[x1]) {
+            for(auto a: G[x1]) {
                 if(G[y1].find(a)!=G[y1].end()) {
                     
                     pair<int, int> ax={min(x1, a), max(x1, a)}, ay={min(y1, a), max(y1, a)};
@@ -223,14 +220,14 @@ void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pa
                 pair<pair<int, int>, int> ed = { make_pair(recvedgebuf[it1], recvedgebuf[it1 + 1]), recvedgebuf[it1 + 2] };
                 pair<int, int> ed1=ed.first;
                 #ifdef gg
-                if(ed1 == make_pair(3, 10)) cout<<my_rank<<": Yes"<<endl;
+                if(ed1 == make_pair(3, 10)) cout<<procRank<<": Yes"<<endl;
                 #endif
                 if(handled.find(ed)==handled.end()){
                     handled.insert(ed);
                     if(my_edges.find(ed1) != my_edges.end()) {
                         supp[ed1] --;
-                        if(supp[ed1] < k-2 && my_deletable.find(ed1) == my_deletable.end()) {
-                            my_deletable.insert(ed1);
+                        if(supp[ed1] < k-2 && find(my_deletable.begin(), my_deletable.end(), ed1) == my_deletable.end()) {
+                            my_deletable.push_back(ed1);
                         }
                     }
                 }
