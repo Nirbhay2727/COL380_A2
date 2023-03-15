@@ -111,10 +111,6 @@ int main(int argc, char* argv[]) {
                 }
             }
             adjList.erase(temp);
-            for (auto it=adjList.begin();it!=adjList.end();it++){
-                if(it->second.find(temp)!=it->second.end())
-                    it->second.erase(temp);
-            }
         }
         
         //initialize
