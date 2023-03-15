@@ -1,5 +1,3 @@
-
-#include <bits/stdc++.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,22 +7,12 @@
 #include <algorithm>
 #include <set>
 #include <unistd.h>
-#include<unordered_set>
+#include <unordered_set>
 #include <mpi.h>
+
 
 using namespace std;
 
-struct pair_hash
-{
-    template <class T1, class T2>
-    std::size_t operator () (std::pair<T1, T2> const &pair) const
-    {
-        std::size_t h1 = std::hash<T1>()(pair.first);
-        std::size_t h2 = std::hash<T2>()(pair.second);
- 
-        return h1 ^ h2;
-    }
-};
 
 void readInputFromFile(const string& filename, int& n, int& m, map<int,set<int> >& adjList) {
     ofstream f1("./test1/our_input.txt");
@@ -71,9 +59,9 @@ void dfs(map<int,set<int>>& G, vector<bool> &visited, int v, vector<int> &verts)
 }
 
 
-void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,set<pair<int,int> >& deletable2){
+void filterEdges(map<int,set<int> >& G,map<pair<int,int>,int>& supp,int k,set<pair<int,int> >& deletable2){
     //filter edges
-    unordered_set<pair<int, int>, pair_hash> my_edges;
+    set<pair<int, int>> my_edges;
     map<pair<int, int>, int> ownerp;
     map<pair<int, int>, bool> my_edge_map;
 
@@ -83,14 +71,13 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
 
 
     vector<pair<int, int>> edges;
-    for(auto it=adjList.begin(); it!=adjList.end(); it++){
+    for(auto it=G.begin(); it!=G.end(); it++){
         for(auto it2=it->second.begin(); it2!=it->second.end(); it2++){
             if(it->first<*it2){
                 edges.push_back(make_pair(it->first,*it2));
             }
         }
     }
-
 
 
     for(int it1 = my_rank; it1<edges.size(); it1+=num_procs) {
@@ -104,15 +91,16 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
     }
 
 
-    set<pair<int, int>, pair_hash> my_deletable;
+    set<pair<int, int>> my_deletable;
 
     for(auto i : deletable2) {
         if(my_edges.find(i)!=my_edges.end()) {
             my_deletable.insert(i);
-            // #ifdef MY_DEL
-            // cout<<"("<<deletable[i].first<<", "<<deletable[i].second<<"), ";
-            // #endif
         }
+    }
+
+    for(auto i : my_deletable) {
+        std::cout << i.first << " " << i.second << endl;
     }
 
     int sendcounts[num_procs];
@@ -135,8 +123,6 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
 
     bool all_fin = false;
 
-    map<int, set<int>> &G = adjList;
-
     while(!all_fin){
         vector<int> recvbuf(3*num_procs);
         vector<int> sendbuf(3*num_procs);
@@ -149,19 +135,13 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
            
             auto e = *my_deletable.begin();
 
-            #ifdef gg
-            if(e==make_pair(3, 11))cout<<"deleting {3, 11}"<<endl;
-            #endif
             my_deletable.erase(e);
             my_edges.erase(e);
             my_edge_map[e] = false;
-            #ifdef MY_DEL
-            cout<<k-2<<"-> Rank "<<my_rank<<" deletes : "<<"("<<e.first<<", "<<e.second<<"), support[make_pair(3, 10)] ="<<support[make_pair(3, 10)]<<endl;
-            #endif
             
             int x1 = e.first, y1 = e.second;
             for(int a: G[x1]) {
-                if(find(G[y1].begin(), G[y1].end(), a) != G[y1].end()) {
+                if(G[y1].find(a)!=G[y1].end()) {
                     
                     pair<int, int> ax={min(x1, a), max(x1, a)}, ay={min(y1, a), max(y1, a)};
                     #ifdef gg
@@ -206,9 +186,6 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
         for(int i=0; i<num_procs; i++){
             if(i!=0)sedgedispls[i]=sedgedispls[i-1] + sendedgecounts[i-1]; 
             for( pair<pair<int, int>, int> e : sendingedges[i]){
-                #ifdef gg
-                if(e==make_pair(3,10))flag=true;
-                #endif
                 sendedgebuf.push_back(e.first.first);
                 sendedgebuf.push_back(e.first.second);
                 sendedgebuf.push_back(e.second);
@@ -220,10 +197,12 @@ void filterEdges(map<int,set<int> >& adjList,map<pair<int,int>,int>& supp,int k,
             int x1=recvbuf[3*i], y1=recvbuf[3*i+1];
             
             if(x1!=-1){
-                if(find(G[x1].begin(), G[x1].end(), y1)!=G[x1].end())
-                    G[x1].erase(find(G[x1].begin(), G[x1].end(), y1));
-                if(find(G[y1].begin(), G[y1].end(), x1)!=G[y1].end())
-                    G[y1].erase(find(G[y1].begin(), G[y1].end(), x1));
+                if(G[x1].find(y1)!=G[x1].end()) {
+                    G[x1].erase(y1);
+                }
+                if(G[y1].find(x1)!=G[y1].end()){
+                    G[y1].erase(x1);
+                }
             }
             else count++;
             
@@ -310,7 +289,12 @@ int main(int argc, char* argv[]) {
     map<int,set<int> > adjList;
     readInputFromFile(inputpath,n,m,adjList);
     map<pair<int,int>,int> supp;
-    ofstream outfile(outputpath);
+    int myrank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    ofstream outfile;
+    if(myrank==0){
+        outfile.open(outputpath, ios::out);
+    }
 
     for(int k = startk+2; k <= endk+2; k++){
 
@@ -353,9 +337,9 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+
+        filterEdges(adjList,supp,k, deletable2);
         
-        int myrank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
 
         //output
@@ -384,7 +368,7 @@ int main(int argc, char* argv[]) {
                                 components.push_back(component);
                             }
                         }
-                        cout << "components size = " << components.size() << endl;
+                        std::cout << "components size = " << components.size() << endl;
                         outfile<<components.size()<<endl;
                         for(auto component:components){
                             sort(component.begin(),component.end());
@@ -403,5 +387,7 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+
+    MPI_Finalize();
     return 0;
 }
